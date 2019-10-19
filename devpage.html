@@ -18,11 +18,11 @@
                 output.appendChild(d);
             };
 
-            function open_ws(uid, sign) {
+            function open_ws(sign) {
                 if (ws) {
                     return false;
                 }
-                ws = new WebSocket("{{.WsURL}}?uid=" + encodeURIComponent(uid) + "&" + sign);
+                ws = new WebSocket("{{.WsURL}}?" + sign);
                 ws.onopen = function(evt) {
                     print("OPEN");
                 };
@@ -44,7 +44,7 @@
                 request.onreadystatechange = function() {
                     if(request.readyState === 4) {
                         if(request.status === 200) {
-                            open_ws(uid, request.responseText);
+                            open_ws(request.responseText);
                         } else {
                             print("ERROR: An error occurred during your request: " +  request.status + " " + request.statusText);
                         }
