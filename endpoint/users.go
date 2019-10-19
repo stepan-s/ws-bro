@@ -17,7 +17,7 @@ var AuthSignTTL int64 = 1800
 
 func SignAuth(uid uint32, ts int64, authKey string) string {
 	hash := sha256.New()
-	hash.Write([]byte(fmt.Sprintf("$d:$d:%s", uid, ts, authKey)))
+	hash.Write([]byte(fmt.Sprintf("%d:%d:%s", uid, ts, authKey)))
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
@@ -95,7 +95,7 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 			}
 
 			hash := sha256.New()
-			hash.Write([]byte(fmt.Sprintf("$d:$d:%s", rUid, ts, authKey)))
+			hash.Write([]byte(fmt.Sprintf("%d:%d:%s", rUid, ts, authKey)))
 			if SignAuth(uid, ts, authKey) != sign {
 				log.Warning("Decline connection, reason: incorrect sign for user: %d", uid)
 				w.Header().Add("X-Error", "Invalid sign")
