@@ -25,7 +25,7 @@ func main() {
 	if *authKey == "" {
 		// Create auth key id empty
 		hash := sha256.New()
-		hash.Write([]byte(fmt.Sprintf("$s$d", apiKey, time.Now().Unix())))
+		hash.Write([]byte(fmt.Sprintf("%s%d", apiKey, time.Now().Unix())))
 		key := fmt.Sprintf("%x", hash.Sum(nil))
 		authKey = &key
 	}
