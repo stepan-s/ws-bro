@@ -7,6 +7,7 @@ import (
 	"github.com/stepan-s/ws-bro/hive"
 	"github.com/stepan-s/ws-bro/log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -22,7 +23,6 @@ func SignAuth(uid uint32, ts int64, authKey string) string {
 
 // Bind http handler
 func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey string) {
-	var upgrader = websocket.Upgrader{} // use default options
 
 	origins := make(map[string]bool)
 	{
@@ -32,18 +32,38 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 		}
 	}
 
+	var upgrader = websocket.Upgrader{
+		CheckOrigin:func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			u, err := url.Parse(origin)
+			if err != nil {
+				log.Error("Fail parse origin: %v", err)
+				return false
+			}
+			// Check domain
+			domain := u.Hostname()
+			_, exists := origins[domain]
+			for !exists {
+				// Check base domains
+				pos := strings.Index(domain, ".")
+				if pos < 0 {
+					break
+				}
+				domain = domain[pos + 1:]
+				_, exists = origins[domain]
+			}
+			if !exists {
+				log.Warning("Decline connection, reason: disallowed origin %s", origin)
+				return false
+			}
+			return true
+		},
+	}
+
 	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		// Auth
 		var uid uint32 = 0
 		{
-			origin := r.Header.Get("Origin")
-			_, exists := origins[origin]
-			if !exists {
-				log.Warning("Decline connection, reason: disallowed origin %s", origin)
-				w.WriteHeader(403)
-				return
-			}
-
 			rUid, err := strconv.ParseInt(r.URL.Query().Get("uid"), 10, 32)
 			if err != nil {
 				w.Header().Add("X-Error", "Invalid uid")
@@ -109,7 +129,7 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 		for {
 			mt, message, err := c.ReadMessage()
 			if err != nil {
-				if err.Error() != "websocket: close 1005 (no status)" {
+				if err.Error() != "websocket: close 1005 (no status)" && err.Error() != "websocket: close 1001 (going away)" {
 					log.Error("Connection read error: %v", err)
 				}
 				break

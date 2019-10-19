@@ -51,7 +51,7 @@ func BindApi(users *hive.Users, pattern string, apiKey string, authKey string) {
 		sign := SignAuth(uint32(uid), now, authKey)
 
 		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-		_, err2 := w.Write([]byte(fmt.Sprintf("ts=%d&sign=%s", now, sign)))
+		_, err2 := w.Write([]byte(fmt.Sprintf("uid=%d&ts=%d&sign=%s", uid, now, sign)))
 		if err2 != nil {
 			log.Error("Fail sign auth: %v", err)
 		}

@@ -1,12 +1,15 @@
 package main
 
 import (
+	"crypto/sha256"
 	"flag"
+	"fmt"
 	"github.com/stepan-s/ws-bro/endpoint"
 	"github.com/stepan-s/ws-bro/hive"
 	"github.com/stepan-s/ws-bro/log"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
@@ -18,6 +21,14 @@ func main() {
 	var apiKey = flag.String("api-key", "", "api key")
 	var devPageTemplate = flag.String("dev-page-template", "devpage.html", "dev page template path")
 	flag.Parse()
+
+	if *authKey == "" {
+		// Create auth key id empty
+		hash := sha256.New()
+		hash.Write([]byte(fmt.Sprintf("$s$d", apiKey, time.Now().Unix())))
+		key := fmt.Sprintf("%x", hash.Sum(nil))
+		authKey = &key
+	}
 
 	log.Init(os.Stdout, log.DEBUG)
 	log.Info("Starting")
