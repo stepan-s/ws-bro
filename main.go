@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"github.com/stepan-s/ws-bro/log"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 )
 
@@ -49,8 +51,23 @@ func main() {
 	endpoint.BindApi(users, "/api", *apiKey, *authKey)
 	endpoint.BindUsers(users, "/bro", *allowedOrigins, *authKey)
 
-	err := http.ListenAndServeTLS(*addr, *certFilename, *privKeyFilename, nil)
-	if err != nil {
+	srv := &http.Server{Addr: *addr}
+
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt)
+		<-sigint
+
+		// We received an interrupt signal, shut down.
+		err := srv.Shutdown(context.Background());
+		if err != nil {
+			// Error from closing listeners, or context timeout:
+			log.Error("Server shutdown: %v", err)
+		}
+	}()
+
+	err := srv.ListenAndServeTLS(*certFilename, *privKeyFilename)
+	if err != http.ErrServerClosed {
 		log.Emergency("Server error: %v", err)
 	}
 	log.Info("Stopped")
