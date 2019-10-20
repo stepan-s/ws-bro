@@ -79,6 +79,7 @@ func main() {
 	err := srv.ListenAndServeTLS(*certFilename, *privKeyFilename)
 	if err != http.ErrServerClosed {
 		log.Emergency("Server error: %v", err)
+		os.Exit(1)
 	}
 	log.Info("Stopped")
 }
