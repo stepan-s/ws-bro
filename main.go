@@ -57,7 +57,7 @@ func main() {
 		endpoint.BindDevPage("/dev", *devPageTemplate, *apiKey)
 	}
 	endpoint.BindStats(users, apps, "/stats")
-	endpoint.BindApi(users, "/api", *apiKey, *authKey)
+	endpoint.BindApi(users, apps, "/api", *apiKey, *authKey)
 	endpoint.BindUsers(users, "/bro", *allowedOrigins, *authKey)
 	endpoint.BindApps(apps, "/app")
 

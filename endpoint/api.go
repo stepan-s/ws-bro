@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/stepan-s/ws-bro/hive"
 	"github.com/stepan-s/ws-bro/log"
 	"io/ioutil"
@@ -10,8 +11,8 @@ import (
 	"time"
 )
 
-func BindApi(users *hive.Users, pattern string, apiKey string, authKey string) {
-	http.HandleFunc(pattern+"/send", func(w http.ResponseWriter, r *http.Request) {
+func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, authKey string) {
+	http.HandleFunc(pattern+"/user/send", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Auth") != apiKey {
 			w.WriteHeader(http.StatusForbidden)
 			return
@@ -32,6 +33,29 @@ func BindApi(users *hive.Users, pattern string, apiKey string, authKey string) {
 		}
 
 		users.SendMessage(uint32(uid), string(body))
+	})
+
+	http.HandleFunc(pattern+"/app/send", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Auth") != apiKey {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		aid, err := uuid.Parse(r.URL.Query().Get("uuid"))
+		if err != nil {
+			w.Header().Add("X-Error", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			w.Header().Add("X-Error", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		apps.SendMessage(aid, string(body))
 	})
 
 	http.HandleFunc(pattern+"/sign-auth", func(w http.ResponseWriter, r *http.Request) {
