@@ -21,7 +21,7 @@ func RouterStart(users *Users, apps *Apps)  {
 			var payload UserPayload
 			err := json.Unmarshal(msg.Payload, payload)
 			if err != nil {
-				log.Error("User:%d say:%v", msg.Uid, msg.Payload)
+				log.Error("User:%d say:%s", msg.Uid, msg.Payload)
 			} else {
 				apps.SendMessage(payload.Receiver, msg.Payload)
 			}
@@ -34,7 +34,7 @@ func RouterStart(users *Users, apps *Apps)  {
 			var payload AppPayload
 			err := json.Unmarshal(msg.Payload, payload)
 			if err != nil {
-				log.Error("User:%d say:%v", msg.Aid, msg.Payload)
+				log.Error("User:%d say:%s", msg.Aid, msg.Payload)
 			} else {
 				users.SendMessage(payload.Receiver, msg.Payload)
 			}
