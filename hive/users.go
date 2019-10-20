@@ -82,11 +82,6 @@ func (users *Users) addConnection(uid uint32, conn *websocket.Conn) {
 	users.Stats.CurrentConnections += 1
 }
 
-// Register user connection
-func (users *Users) AddConnection(uid uint32, conn *websocket.Conn) {
-	users.chanConn <- connectionMessage{ADD, uid, conn}
-}
-
 // Unregister user connection
 func (users *Users) removeConnection(uid uint32, conn *websocket.Conn) {
 	conns, exists := users.conns[uid]
@@ -114,9 +109,36 @@ func (users *Users) removeConnection(uid uint32, conn *websocket.Conn) {
 	}
 }
 
-// Unregister user connection
-func (users *Users) RemoveConnection(uid uint32, conn *websocket.Conn) {
-	users.chanConn <- connectionMessage{REMOVE, uid, conn}
+func (users *Users) HandleUserConnection(conn *websocket.Conn, uid uint32)  {
+	// Register user connection
+	users.chanConn <- connectionMessage{ADD, uid, conn}
+
+	// Cleanup
+	defer func() {
+		// Remove connection from user
+		users.chanConn <- connectionMessage{REMOVE, uid, conn}
+		// close
+		err := conn.Close()
+		if err != nil {
+			log.Error("Connection close error: %v", err)
+		}
+	}()
+
+	// Process
+	for {
+		mt, message, err := conn.ReadMessage()
+		if err != nil {
+			if err.Error() != "websocket: close 1005 (no status)" && err.Error() != "websocket: close 1001 (going away)" {
+				log.Error("Connection read error: %v", err)
+			}
+			break
+		}
+		if mt == websocket.TextMessage {
+			users.Stats.MessagesReceived += 1
+			// Dispatch message from user
+			users.chanOut <- Message{uid, message}
+		}
+	}
 }
 
 // Send message to all user connections
@@ -139,12 +161,6 @@ func (users *Users) sendMessage(uid uint32, payload []byte) {
 // Send message to all user connections
 func (users *Users) SendMessage(uid uint32, payload []byte) {
 	users.chanIn <- Message{uid, payload}
-}
-
-// Dispatch message from user
-func (users *Users) DispatchMessage(uid uint32, payload []byte) {
-	users.Stats.MessagesReceived += 1
-	users.chanOut <- Message{uid, payload}
 }
 
 // Read message from user, blocked

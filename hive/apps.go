@@ -90,11 +90,6 @@ func (apps *Apps) addConnection(aid uuid.UUID, conn *websocket.Conn) {
 	//@TODO: request uid list
 }
 
-// Register app connection
-func (apps *Apps) AddConnection(aid uuid.UUID, conn *websocket.Conn) {
-	apps.chanConn <- appConnectionMessage{ADD, aid, conn}
-}
-
 // Unregister app connection
 func (apps *Apps) removeConnection(aid uuid.UUID) {
 	_, exists := apps.conns[aid]
@@ -108,9 +103,36 @@ func (apps *Apps) removeConnection(aid uuid.UUID) {
 	log.Info("Bye app: %v", aid)
 }
 
-// Unregister app connection
-func (apps *Apps) RemoveConnection(aid uuid.UUID, conn *websocket.Conn) {
-	apps.chanConn <- appConnectionMessage{REMOVE, aid, conn}
+func (apps *Apps) HandleAppConnection(conn *websocket.Conn, aid uuid.UUID) {
+	// Register app connection
+	apps.chanConn <- appConnectionMessage{ADD, aid, conn}
+
+	// Cleanup
+	defer func() {
+		// Remove app connection
+		apps.chanConn <- appConnectionMessage{REMOVE, aid, conn}
+		// close
+		err := conn.Close()
+		if err != nil {
+			log.Error("Connection close error: %v", err)
+		}
+	}()
+
+	// Process
+	for {
+		mt, message, err := conn.ReadMessage()
+		if err != nil {
+			if err.Error() != "websocket: close 1005 (no status)" && err.Error() != "websocket: close 1001 (going away)" {
+				log.Error("Connection read error: %v", err)
+			}
+			break
+		}
+		if mt == websocket.TextMessage {
+			apps.Stats.MessagesReceived += 1
+			// Dispatch message from app
+			apps.chanOut <- AppMessage{aid, message}
+		}
+	}
 }
 
 // Send message to all app connections
@@ -129,12 +151,6 @@ func (apps *Apps) sendMessage(aid uuid.UUID, payload []byte) {
 // Send message to all app connections
 func (apps *Apps) SendMessage(aid uuid.UUID, payload []byte) {
 	apps.chanIn <- AppMessage{aid, payload}
-}
-
-// Dispatch message from app
-func (apps *Apps) DispatchMessage(aid uuid.UUID, payload []byte) {
-	apps.Stats.MessagesReceived += 1
-	apps.chanOut <- AppMessage{aid, payload}
 }
 
 // Read message from app, blocked

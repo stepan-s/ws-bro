@@ -38,36 +38,6 @@ func BindApps(apps *hive.Apps, pattern string) {
 			return
 		}
 
-		handleAppConnection(apps, conn, aid)
+		apps.HandleAppConnection(conn, aid)
 	})
-}
-
-func handleAppConnection(apps *hive.Apps, conn *websocket.Conn, aid uuid.UUID) {
-	// Register app connection
-	apps.AddConnection(aid, conn)
-
-	// Cleanup
-	defer func() {
-		// Remove app connection
-		apps.RemoveConnection(aid, conn)
-		// close
-		err := conn.Close()
-		if err != nil {
-			log.Error("Connection close error: %v", err)
-		}
-	}()
-
-	// Process
-	for {
-		mt, message, err := conn.ReadMessage()
-		if err != nil {
-			if err.Error() != "websocket: close 1005 (no status)" && err.Error() != "websocket: close 1001 (going away)" {
-				log.Error("Connection read error: %v", err)
-			}
-			break
-		}
-		if mt == websocket.TextMessage {
-			apps.DispatchMessage(aid, message)
-		}
-	}
 }
