@@ -23,7 +23,7 @@ func RouterStart(users *Users, apps *Apps)  {
 			if err != nil {
 				log.Error("User:%d say:%s", msg.Uid, msg.Payload)
 			} else {
-				apps.SendMessage(payload.Receiver, msg.Payload)
+				apps.SendMessage(payload.Receiver, msg.Uid, msg.Payload)
 			}
 		}
 	}()
@@ -31,12 +31,13 @@ func RouterStart(users *Users, apps *Apps)  {
 	go func() {
 		for {
 			msg := apps.ReceiveMessage()
-			var payload AppPayload
-			err := json.Unmarshal(msg.Payload, payload)
-			if err != nil {
-				log.Error("User:%d say:%s", msg.Aid, msg.Payload)
-			} else {
-				users.SendMessage(payload.Receiver, msg.Payload)
+			// send to all users connected to the app
+			if msg.Uids != nil {
+				item := msg.Uids.Front()
+				for item != nil {
+					users.SendMessage(item.Value.(uint32), msg.Payload)
+					item = item.Next()
+				}
 			}
 		}
 	}()

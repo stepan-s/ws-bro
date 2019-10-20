@@ -8,8 +8,16 @@ import (
 )
 
 // A message to app
-type AppMessage struct {
+type AppMessageTo struct {
 	Aid     uuid.UUID
+	Uid     uint32
+	Payload []byte
+}
+
+// A message from app
+type AppMessageFrom struct {
+	Aid     uuid.UUID
+	Uids	*list.List
 	Payload []byte
 }
 
@@ -35,8 +43,8 @@ type AppsStats struct {
 // A apps hive
 type Apps struct {
 	conns    map[uuid.UUID]*App
-	chanIn   chan AppMessage
-	chanOut  chan AppMessage
+	chanIn   chan AppMessageTo
+	chanOut  chan AppMessageFrom
 	chanConn chan appConnectionMessage
 	Stats    AppsStats
 }
@@ -45,8 +53,8 @@ type Apps struct {
 func NewApps() *Apps {
 	apps := new(Apps)
 	apps.conns = make(map[uuid.UUID]*App)
-	apps.chanIn = make(chan AppMessage, 1000)
-	apps.chanOut = make(chan AppMessage, 1000)
+	apps.chanIn = make(chan AppMessageTo, 1000)
+	apps.chanOut = make(chan AppMessageFrom, 1000)
 	apps.chanConn = make(chan appConnectionMessage, 1000)
 	go func() {
 		for {
@@ -59,7 +67,7 @@ func NewApps() *Apps {
 					apps.removeConnection(msg.aid)
 				}
 			case msg := <-apps.chanIn:
-				apps.sendMessage(msg.Aid, msg.Payload)
+				apps.sendMessage(msg.Aid, msg.Uid, msg.Payload)
 			}
 		}
 	}()
@@ -130,30 +138,53 @@ func (apps *Apps) HandleAppConnection(conn *websocket.Conn, aid uuid.UUID) {
 		if mt == websocket.TextMessage {
 			apps.Stats.MessagesReceived += 1
 			// Dispatch message from app
-			apps.chanOut <- AppMessage{aid, message}
+			conn, exists := apps.conns[aid]
+			if exists {
+				apps.chanOut <- AppMessageFrom{aid, conn.uids, message}
+			}
 		}
 	}
 }
 
 // Send message to all app connections
-func (apps *Apps) sendMessage(aid uuid.UUID, payload []byte) {
+func (apps *Apps) sendMessage(aid uuid.UUID, uid uint32, payload []byte) {
 	app, exists := apps.conns[aid]
 	if exists {
-		err := app.conn.WriteMessage(websocket.TextMessage, payload)
-		if err != nil {
-			log.Error("Send error: %v", err)
+		send := false
+		if uid == SYSUID {
+			send = true
 		} else {
-			apps.Stats.MessagesTransmitted += 1
+			// check uid is linked to app
+			if app.uids != nil {
+				item := app.uids.Front()
+				for item != nil {
+					if uid == item.Value.(uint32) {
+						send = true
+						break
+					}
+					item = item.Next()
+				}
+			}
+		}
+
+		if send {
+			// uid can send to app
+			err := app.conn.WriteMessage(websocket.TextMessage, payload)
+			if err != nil {
+				log.Error("Send error: %v", err)
+			} else {
+				apps.Stats.MessagesTransmitted += 1
+			}
 		}
 	}
 }
 
 // Send message to all app connections
-func (apps *Apps) SendMessage(aid uuid.UUID, payload []byte) {
-	apps.chanIn <- AppMessage{aid, payload}
+func (apps *Apps) SendMessage(aid uuid.UUID, uid uint32, payload []byte) {
+	apps.chanIn <- AppMessageTo{aid, uid, payload}
 }
 
 // Read message from app, blocked
-func (apps *Apps) ReceiveMessage() AppMessage {
+func (apps *Apps) ReceiveMessage() AppMessageFrom {
 	return <-apps.chanOut
 }

@@ -55,7 +55,7 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			return
 		}
 
-		apps.SendMessage(aid, body)
+		apps.SendMessage(aid, hive.SYSUID, body)
 	})
 
 	http.HandleFunc(pattern+"/sign-auth", func(w http.ResponseWriter, r *http.Request) {
