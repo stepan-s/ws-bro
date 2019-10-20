@@ -28,6 +28,8 @@ type App struct {
 type AppsStats struct {
 	TotalConnectionsAccepted uint64
 	CurrentConnections       uint32
+	MessagesReceived         uint64
+	MessagesTransmitted      uint64
 }
 
 // A apps hive
@@ -118,6 +120,8 @@ func (apps *Apps) sendMessage(aid uuid.UUID, payload string) {
 		err := app.conn.WriteMessage(websocket.TextMessage, []byte(payload))
 		if err != nil {
 			log.Error("Send error: %v", err)
+		} else {
+			apps.Stats.MessagesTransmitted += 1
 		}
 	}
 }
@@ -129,6 +133,7 @@ func (apps *Apps) SendMessage(aid uuid.UUID, payload string) {
 
 // Dispatch message from app
 func (apps *Apps) DispatchMessage(aid uuid.UUID, payload string) {
+	apps.Stats.MessagesReceived += 1
 	apps.chanOut <- AppMessage{aid, payload}
 }
 

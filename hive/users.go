@@ -24,6 +24,8 @@ type Stats struct {
 	CurrentConnections       uint32
 	TotalUsersConnected      uint64
 	CurrentUsersConnected    uint32
+	MessagesReceived         uint64
+	MessagesTransmitted      uint64
 }
 
 // A users hive
@@ -126,6 +128,8 @@ func (users *Users) sendMessage(uid uint32, payload string) {
 			err := item.Value.(*websocket.Conn).WriteMessage(websocket.TextMessage, []byte(payload))
 			if err != nil {
 				log.Error("Send error: %v", err)
+			} else {
+				users.Stats.MessagesTransmitted += 1
 			}
 			item = item.Next()
 		}
@@ -139,6 +143,7 @@ func (users *Users) SendMessage(uid uint32, payload string) {
 
 // Dispatch message from user
 func (users *Users) DispatchMessage(uid uint32, payload string) {
+	users.Stats.MessagesReceived += 1
 	users.chanOut <- Message{uid, payload}
 }
 
