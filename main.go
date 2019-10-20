@@ -56,7 +56,7 @@ func main() {
 	if len(*devPageTemplate) > 0 {
 		endpoint.BindDevPage("/dev", *devPageTemplate, *apiKey)
 	}
-	endpoint.BindStats(users, "/stats")
+	endpoint.BindStats(users, apps, "/stats")
 	endpoint.BindApi(users, "/api", *apiKey, *authKey)
 	endpoint.BindUsers(users, "/bro", *allowedOrigins, *authKey)
 	endpoint.BindApps(apps, "/app")

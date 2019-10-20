@@ -1,27 +1,35 @@
 package endpoint
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/stepan-s/ws-bro/hive"
 	"github.com/stepan-s/ws-bro/log"
 	"net/http"
 )
 
-func BindStats(users *hive.Users, pattern string) {
+type Stats struct {
+	Users *hive.Stats
+	Apps *hive.AppsStats
+}
+
+func BindStats(users *hive.Users, apps *hive.Apps, pattern string) {
 	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-		info := fmt.Sprintf(
-			`Current users connected: %d
-Current connections: %d
-Total users connected: %d
-Total connections accepted: %d`,
-			users.Stats.CurrentUsersConnected,
-			users.Stats.CurrentConnections,
-			users.Stats.TotalUsersConnected,
-			users.Stats.TotalConnectionsAccepted)
-		_, err := w.Write([]byte(info))
+		stats := Stats{
+			Users: &users.Stats,
+			Apps:  &apps.Stats,
+		}
+		w.Header().Add("Content-Type", "application/json")
+		info, err := json.Marshal(stats)
 		if err != nil {
 			log.Error("Fail bind stats: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		_, err = w.Write([]byte(info))
+		if err != nil {
+			log.Error("Fail bind stats: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 	})
 }

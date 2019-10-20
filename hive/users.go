@@ -21,8 +21,8 @@ type connectionMessage struct {
 
 type Stats struct {
 	TotalConnectionsAccepted uint64
-	TotalUsersConnected      uint64
 	CurrentConnections       uint32
+	TotalUsersConnected      uint64
 	CurrentUsersConnected    uint32
 }
 

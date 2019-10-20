@@ -26,8 +26,8 @@ type App struct {
 }
 
 type AppsStats struct {
-	TotalAppsConnected		 uint64
-	CurrentAppsConnected	 uint32
+	TotalConnectionsAccepted uint64
+	CurrentConnections       uint32
 }
 
 // A apps hive
@@ -82,8 +82,8 @@ func (apps *Apps) addConnection(aid uuid.UUID, conn *websocket.Conn) {
 		uids: list.New(),
 		conn: conn,
 	}
-	apps.Stats.TotalAppsConnected += 1
-	apps.Stats.CurrentAppsConnected += 1
+	apps.Stats.TotalConnectionsAccepted += 1
+	apps.Stats.CurrentConnections += 1
 
 	//@TODO: request uid list
 }
@@ -102,7 +102,7 @@ func (apps *Apps) removeConnection(aid uuid.UUID) {
 
 	// No connection left - remove app
 	delete(apps.conns, aid)
-	apps.Stats.CurrentAppsConnected -= 1
+	apps.Stats.CurrentConnections -= 1
 	log.Info("Bye app: %v", aid)
 }
 
