@@ -13,21 +13,21 @@ import (
 func BindApi(users *hive.Users, pattern string, apiKey string, authKey string) {
 	http.HandleFunc(pattern+"/send", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Auth") != apiKey {
-			w.WriteHeader(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
 		uid, err := strconv.ParseInt(r.URL.Query().Get("uid"), 10, 32)
 		if err != nil {
 			w.Header().Add("X-Error", err.Error())
-			w.WriteHeader(400)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			w.Header().Add("X-Error", err.Error())
-			w.WriteHeader(400)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -36,14 +36,14 @@ func BindApi(users *hive.Users, pattern string, apiKey string, authKey string) {
 
 	http.HandleFunc(pattern+"/sign-auth", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Auth") != apiKey {
-			w.WriteHeader(403)
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 
 		uid, err := strconv.ParseInt(r.URL.Query().Get("uid"), 10, 32)
 		if err != nil {
 			w.Header().Add("X-Error", err.Error())
-			w.WriteHeader(400)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -54,6 +54,7 @@ func BindApi(users *hive.Users, pattern string, apiKey string, authKey string) {
 		_, err2 := w.Write([]byte(fmt.Sprintf("uid=%d&ts=%d&sign=%s", uid, now, sign)))
 		if err2 != nil {
 			log.Error("Fail sign auth: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 	})
 }

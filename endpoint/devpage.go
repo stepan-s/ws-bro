@@ -28,6 +28,7 @@ func BindDevPage(pattern string, templatePath string, apiKey string) {
 		})
 		if err != nil {
 			log.Error("Fail execute devpage template: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 	})
 }

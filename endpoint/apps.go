@@ -17,14 +17,14 @@ func BindApps(apps *hive.Apps, pattern string) {
 		aid, err := uuid.Parse(r.URL.Query().Get("uuid"))
 		if err != nil {
 			w.Header().Add("X-Error", "Invalid uuid")
-			w.WriteHeader(400)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		token := r.URL.Query().Get("token")
 		if token == "" {
 			w.Header().Add("X-Error", "Empty token")
-			w.WriteHeader(400)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -34,6 +34,7 @@ func BindApps(apps *hive.Apps, pattern string) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Error("Upgrade connection error: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 

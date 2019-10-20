@@ -67,7 +67,7 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 			rUid, err := strconv.ParseInt(r.URL.Query().Get("uid"), 10, 32)
 			if err != nil {
 				w.Header().Add("X-Error", "Invalid uid")
-				w.WriteHeader(400)
+				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 			uid = uint32(rUid)
@@ -75,14 +75,14 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 			sign := r.URL.Query().Get("sign")
 			if sign == "" {
 				w.Header().Add("X-Error", "Empty sign")
-				w.WriteHeader(400)
+				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 
 			ts, err := strconv.ParseInt(r.URL.Query().Get("ts"), 10, 64)
 			if err != nil {
 				w.Header().Add("X-Error", "Invalid ts")
-				w.WriteHeader(400)
+				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 
@@ -90,7 +90,7 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 			if (now - ts) > AuthSignTTL {
 				log.Warning("Decline connection, reason: incorrect ts: %d for user: %d", ts, uid)
 				w.Header().Add("X-Error", "Expired sign")
-				w.WriteHeader(403)
+				w.WriteHeader(http.StatusForbidden)
 				return
 			}
 
@@ -99,7 +99,7 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 			if SignAuth(uid, ts, authKey) != sign {
 				log.Warning("Decline connection, reason: incorrect sign for user: %d", uid)
 				w.Header().Add("X-Error", "Invalid sign")
-				w.WriteHeader(403)
+				w.WriteHeader(http.StatusForbidden)
 				return
 			}
 		}
@@ -108,6 +108,7 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Error("Upgrade connection error: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
