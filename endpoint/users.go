@@ -141,7 +141,7 @@ func handleUserConnection(users *hive.Users, conn *websocket.Conn, uid uint32)  
 			break
 		}
 		if mt == websocket.TextMessage {
-			users.DispatchMessage(uid, string(message))
+			users.DispatchMessage(uid, message)
 		}
 	}
 }

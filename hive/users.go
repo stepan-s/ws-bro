@@ -9,7 +9,7 @@ import (
 // A message to user
 type Message struct {
 	Uid     uint32
-	Payload string
+	Payload []byte
 }
 
 // A connection message
@@ -120,12 +120,12 @@ func (users *Users) RemoveConnection(uid uint32, conn *websocket.Conn) {
 }
 
 // Send message to all user connections
-func (users *Users) sendMessage(uid uint32, payload string) {
+func (users *Users) sendMessage(uid uint32, payload []byte) {
 	conns, exists := users.conns[uid]
 	if exists {
 		item := conns.Front()
 		for item != nil {
-			err := item.Value.(*websocket.Conn).WriteMessage(websocket.TextMessage, []byte(payload))
+			err := item.Value.(*websocket.Conn).WriteMessage(websocket.TextMessage, payload)
 			if err != nil {
 				log.Error("Send error: %v", err)
 			} else {
@@ -137,12 +137,12 @@ func (users *Users) sendMessage(uid uint32, payload string) {
 }
 
 // Send message to all user connections
-func (users *Users) SendMessage(uid uint32, payload string) {
+func (users *Users) SendMessage(uid uint32, payload []byte) {
 	users.chanIn <- Message{uid, payload}
 }
 
 // Dispatch message from user
-func (users *Users) DispatchMessage(uid uint32, payload string) {
+func (users *Users) DispatchMessage(uid uint32, payload []byte) {
 	users.Stats.MessagesReceived += 1
 	users.chanOut <- Message{uid, payload}
 }

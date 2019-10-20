@@ -67,7 +67,7 @@ func handleAppConnection(apps *hive.Apps, conn *websocket.Conn, aid uuid.UUID) {
 			break
 		}
 		if mt == websocket.TextMessage {
-			apps.DispatchMessage(aid, string(message))
+			apps.DispatchMessage(aid, message)
 		}
 	}
 }

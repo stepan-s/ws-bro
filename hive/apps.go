@@ -10,7 +10,7 @@ import (
 // A message to app
 type AppMessage struct {
 	Aid     uuid.UUID
-	Payload string
+	Payload []byte
 }
 
 // A connection message
@@ -114,10 +114,10 @@ func (apps *Apps) RemoveConnection(aid uuid.UUID, conn *websocket.Conn) {
 }
 
 // Send message to all app connections
-func (apps *Apps) sendMessage(aid uuid.UUID, payload string) {
+func (apps *Apps) sendMessage(aid uuid.UUID, payload []byte) {
 	app, exists := apps.conns[aid]
 	if exists {
-		err := app.conn.WriteMessage(websocket.TextMessage, []byte(payload))
+		err := app.conn.WriteMessage(websocket.TextMessage, payload)
 		if err != nil {
 			log.Error("Send error: %v", err)
 		} else {
@@ -127,12 +127,12 @@ func (apps *Apps) sendMessage(aid uuid.UUID, payload string) {
 }
 
 // Send message to all app connections
-func (apps *Apps) SendMessage(aid uuid.UUID, payload string) {
+func (apps *Apps) SendMessage(aid uuid.UUID, payload []byte) {
 	apps.chanIn <- AppMessage{aid, payload}
 }
 
 // Dispatch message from app
-func (apps *Apps) DispatchMessage(aid uuid.UUID, payload string) {
+func (apps *Apps) DispatchMessage(aid uuid.UUID, payload []byte) {
 	apps.Stats.MessagesReceived += 1
 	apps.chanOut <- AppMessage{aid, payload}
 }

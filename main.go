@@ -36,22 +36,8 @@ func main() {
 	log.Info("Starting")
 
 	users := hive.NewUsers()
-	go func() {
-		for {
-			msg := users.ReceiveMessage()
-			log.Info("User:%d say:%s", msg.Uid, msg.Payload)
-			users.SendMessage(msg.Uid, "Hi! User")
-		}
-	}()
-
 	apps := hive.NewApps()
-	go func() {
-		for {
-			msg := apps.ReceiveMessage()
-			log.Info("User:%d say:%s", msg.Aid, msg.Payload)
-			apps.SendMessage(msg.Aid, "Hi! User")
-		}
-	}()
+	hive.RouterStart(users, apps)
 
 	if len(*devPageTemplate) > 0 {
 		endpoint.BindDevPage("/dev", *devPageTemplate, *apiKey)

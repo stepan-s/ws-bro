@@ -32,7 +32,7 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			return
 		}
 
-		users.SendMessage(uint32(uid), string(body))
+		users.SendMessage(uint32(uid), body)
 	})
 
 	http.HandleFunc(pattern+"/app/send", func(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +55,7 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			return
 		}
 
-		apps.SendMessage(aid, string(body))
+		apps.SendMessage(aid, body)
 	})
 
 	http.HandleFunc(pattern+"/sign-auth", func(w http.ResponseWriter, r *http.Request) {
