@@ -12,9 +12,6 @@ type Message struct {
 	Payload string
 }
 
-const ADD = 1
-const REMOVE = 2
-
 // A connection message
 type connectionMessage struct {
 	cmd  uint8

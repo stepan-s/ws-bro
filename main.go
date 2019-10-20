@@ -44,12 +44,22 @@ func main() {
 		}
 	}()
 
+	apps := hive.NewApps()
+	go func() {
+		for {
+			msg := apps.ReceiveMessage()
+			log.Info("User:%d say:%s", msg.Aid, msg.Payload)
+			apps.SendMessage(msg.Aid, "Hi! User")
+		}
+	}()
+
 	if len(*devPageTemplate) > 0 {
 		endpoint.BindDevPage("/dev", *devPageTemplate, *apiKey)
 	}
 	endpoint.BindStats(users, "/stats")
 	endpoint.BindApi(users, "/api", *apiKey, *authKey)
 	endpoint.BindUsers(users, "/bro", *allowedOrigins, *authKey)
+	endpoint.BindApps(apps, "/app")
 
 	srv := &http.Server{Addr: *addr}
 
