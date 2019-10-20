@@ -105,38 +105,42 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 		}
 
 		// Accept connection
-		c, err := upgrader.Upgrade(w, r, nil)
+		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Error("Upgrade connection error: %v", err)
 			return
 		}
 
-		// Register user connection
-		users.AddConnection(uid, c)
-
-		// Cleanup
-		defer func() {
-			// Remove connection from user
-			users.RemoveConnection(uid, c)
-			// close
-			err := c.Close()
-			if err != nil {
-				log.Error("Connection close error: %v", err)
-			}
-		}()
-
-		// Process
-		for {
-			mt, message, err := c.ReadMessage()
-			if err != nil {
-				if err.Error() != "websocket: close 1005 (no status)" && err.Error() != "websocket: close 1001 (going away)" {
-					log.Error("Connection read error: %v", err)
-				}
-				break
-			}
-			if mt == websocket.TextMessage {
-				users.DispatchMessage(uid, string(message))
-			}
-		}
+		handleUserConnection(users, conn, uid);
 	})
+}
+
+func handleUserConnection(users *hive.Users, conn *websocket.Conn, uid uint32)  {
+	// Register user connection
+	users.AddConnection(uid, conn)
+
+	// Cleanup
+	defer func() {
+		// Remove connection from user
+		users.RemoveConnection(uid, conn)
+		// close
+		err := conn.Close()
+		if err != nil {
+			log.Error("Connection close error: %v", err)
+		}
+	}()
+
+	// Process
+	for {
+		mt, message, err := conn.ReadMessage()
+		if err != nil {
+			if err.Error() != "websocket: close 1005 (no status)" && err.Error() != "websocket: close 1001 (going away)" {
+				log.Error("Connection read error: %v", err)
+			}
+			break
+		}
+		if mt == websocket.TextMessage {
+			users.DispatchMessage(uid, string(message))
+		}
+	}
 }
