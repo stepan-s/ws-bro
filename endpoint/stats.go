@@ -25,7 +25,7 @@ func BindStats(users *hive.Users, apps *hive.Apps, pattern string) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		_, err = w.Write([]byte(info))
+		_, err = w.Write(info)
 		if err != nil {
 			log.Error("Fail bind stats: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)

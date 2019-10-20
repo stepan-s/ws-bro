@@ -112,7 +112,7 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 			return
 		}
 
-		handleUserConnection(users, conn, uid);
+		handleUserConnection(users, conn, uid)
 	})
 }
 
