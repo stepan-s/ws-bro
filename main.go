@@ -21,6 +21,7 @@ func main() {
 	var certFilename = flag.String("cert-file", "", "certificate path")
 	var privKeyFilename = flag.String("key-file", "", "private key path")
 	var apiKey = flag.String("api-key", "", "api key")
+	var uidsApiUrl = flag.String("uids-api-url", "", "get uids by uuid")
 	var devPageTemplate = flag.String("dev-page-template", "devpage.html", "dev page template path")
 	flag.Parse()
 
@@ -36,7 +37,7 @@ func main() {
 	log.Info("Starting")
 
 	users := hive.NewUsers()
-	apps := hive.NewApps()
+	apps := hive.NewApps(*uidsApiUrl)
 	hive.RouterStart(users, apps)
 
 	if len(*devPageTemplate) > 0 {

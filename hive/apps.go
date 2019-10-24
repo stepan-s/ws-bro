@@ -2,9 +2,12 @@ package hive
 
 import (
 	"container/list"
+	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/stepan-s/ws-bro/log"
+	"net/http"
+	"time"
 )
 
 // A message to app
@@ -17,7 +20,7 @@ type AppMessageTo struct {
 // A message from app
 type AppMessageFrom struct {
 	Aid     uuid.UUID
-	Uids	*list.List
+	Uids    *list.List
 	Payload []byte
 }
 
@@ -42,20 +45,26 @@ type AppsStats struct {
 
 // A apps hive
 type Apps struct {
-	conns    map[uuid.UUID]*App
-	chanIn   chan AppMessageTo
-	chanOut  chan AppMessageFrom
-	chanConn chan appConnectionMessage
-	Stats    AppsStats
+	conns      map[uuid.UUID]*App
+	chanIn     chan AppMessageTo
+	chanOut    chan AppMessageFrom
+	chanConn   chan appConnectionMessage
+	Stats      AppsStats
+	uidsApiUrl string
+}
+
+type uidsReponse struct {
+	Uids	[]uint32
 }
 
 // Instantiate apps hive
-func NewApps() *Apps {
+func NewApps(uidsApiUrl string) *Apps {
 	apps := new(Apps)
 	apps.conns = make(map[uuid.UUID]*App)
 	apps.chanIn = make(chan AppMessageTo, 1000)
 	apps.chanOut = make(chan AppMessageFrom, 1000)
 	apps.chanConn = make(chan appConnectionMessage, 1000)
+	apps.uidsApiUrl = uidsApiUrl
 	go func() {
 		for {
 			select {
@@ -95,7 +104,53 @@ func (apps *Apps) addConnection(aid uuid.UUID, conn *websocket.Conn) {
 	apps.Stats.TotalConnectionsAccepted += 1
 	apps.Stats.CurrentConnections += 1
 
-	//@TODO: request uid list
+	go apps.getUids(aid)
+}
+
+// Request uid list
+func (apps *Apps) getUids(aid uuid.UUID) {
+	attempts := 10
+	for i := attempts; i > 0; i-- {
+		if i < attempts {
+			time.Sleep(5 * time.Second)
+		}
+
+		req, err := http.NewRequest("GET", apps.uidsApiUrl, nil)
+		if err != nil {
+			log.Error("Fail init request: %v", err)
+			continue
+		}
+
+		req.Form.Set("uuid", aid.String())
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Error("Fail do request: %v", err)
+			continue
+		}
+
+		var buf []byte
+		_, err = resp.Body.Read(buf)
+		if err != nil {
+			log.Error("Fail get response: %v", err)
+			continue
+		}
+
+		var uids uidsReponse
+		err = json.Unmarshal(buf, uids)
+		if err != nil {
+			log.Error("Fail parse response: %v", err)
+			continue
+		}
+
+		apps.addUids(aid, uids.Uids)
+		break
+	}
+}
+
+// Unregister app connection
+func (apps *Apps) addUids(aid uuid.UUID, uids []uint32) {
+	//@TODO: add uids by chan
 }
 
 // Unregister app connection
