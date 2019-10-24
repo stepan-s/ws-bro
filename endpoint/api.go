@@ -72,7 +72,7 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 		}
 
 		now := time.Now().Unix()
-		sign := SignAuth(uint32(uid), now, authKey)
+		sign := SignUserAuth(uint32(uid), now, authKey)
 
 		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 		_, err2 := w.Write([]byte(fmt.Sprintf("uid=%d&ts=%d&sign=%s", uid, now, sign)))
