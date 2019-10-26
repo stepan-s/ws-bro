@@ -42,6 +42,7 @@ func main() {
 	hive.RouterStart(users, apps)
 
 	if len(*devPageTemplate) > 0 {
+		log.Alert("Binding dev page handler - don't use in production - secrets leak!")
 		endpoint.BindDevPage("/dev", *devPageTemplate, *apiKey)
 	}
 	endpoint.BindStats(users, apps, "/stats")
