@@ -112,6 +112,8 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 			return
 		}
 
+		log.Debug("User-Agent: %v", r.Header.Get("User-Agent"))
+
 		users.HandleUserConnection(conn, uid)
 	})
 }
