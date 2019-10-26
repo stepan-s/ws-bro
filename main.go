@@ -18,6 +18,7 @@ func main() {
 	var addr = flag.String("addr", "localhost:443", "http service address")
 	var allowedOrigins = flag.String("allowed-origins", "", "allowed origins")
 	var authKey = flag.String("auth-key", "", "auth key")
+	endpoint.AuthSignTTL = *flag.Int64("auth-sign-ttl", endpoint.AuthSignTTL, "auth sign ttl in seconds")
 	var certFilename = flag.String("cert-file", "", "certificate path")
 	var privKeyFilename = flag.String("key-file", "", "private key path")
 	var apiKey = flag.String("api-key", "", "api key")
