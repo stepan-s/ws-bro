@@ -7,19 +7,19 @@ import (
 )
 
 // A message to user
-type Message struct {
-	Uid     uint32
-	Payload []byte
+type UserMessageEvent struct {
+	Uid        uint32
+	RawMessage []byte
 }
 
 // A connection message
-type connectionMessage struct {
+type userConnectionEvent struct {
 	cmd  uint8
 	uid  uint32
 	conn *websocket.Conn
 }
 
-type Stats struct {
+type UsersStats struct {
 	TotalConnectionsAccepted uint64
 	CurrentConnections       uint32
 	TotalUsersConnected      uint64
@@ -31,31 +31,31 @@ type Stats struct {
 // A users hive
 type Users struct {
 	conns    map[uint32]*list.List
-	chanIn   chan Message
-	chanOut  chan Message
-	chanConn chan connectionMessage
-	Stats    Stats
+	chanIn   chan UserMessageEvent
+	chanOut  chan UserMessageEvent
+	chanConn chan userConnectionEvent
+	Stats    UsersStats
 }
 
 // Instantiate users hive
 func NewUsers() *Users {
 	users := new(Users)
 	users.conns = make(map[uint32]*list.List)
-	users.chanIn = make(chan Message, 1000)
-	users.chanOut = make(chan Message, 1000)
-	users.chanConn = make(chan connectionMessage, 1000)
+	users.chanIn = make(chan UserMessageEvent, 1000)
+	users.chanOut = make(chan UserMessageEvent, 1000)
+	users.chanConn = make(chan userConnectionEvent, 1000)
 	go func() {
 		for {
 			select {
-			case msg := <-users.chanConn:
-				switch msg.cmd {
+			case event := <-users.chanConn:
+				switch event.cmd {
 				case ADD:
-					users.addConnection(msg.uid, msg.conn)
+					users.addConnection(event.uid, event.conn)
 				case REMOVE:
-					users.removeConnection(msg.uid, msg.conn)
+					users.removeConnection(event.uid, event.conn)
 				}
-			case msg := <-users.chanIn:
-				users.sendMessage(msg.Uid, msg.Payload)
+			case event := <-users.chanIn:
+				users.sendEvent(event)
 			}
 		}
 	}()
@@ -66,7 +66,7 @@ func NewUsers() *Users {
 func (users *Users) addConnection(uid uint32, conn *websocket.Conn) {
 	conns, exists := users.conns[uid]
 	if !exists {
-		log.Info("hello user: %d", uid)
+		log.Info("Hello user: %d", uid)
 		conns = list.New()
 	} else {
 		log.Debug("Add connection for user: %d", uid)
@@ -109,14 +109,14 @@ func (users *Users) removeConnection(uid uint32, conn *websocket.Conn) {
 	}
 }
 
-func (users *Users) HandleUserConnection(conn *websocket.Conn, uid uint32)  {
+func (users *Users) HandleConnection(conn *websocket.Conn, uid uint32)  {
 	// Register user connection
-	users.chanConn <- connectionMessage{ADD, uid, conn}
+	users.chanConn <- userConnectionEvent{ADD, uid, conn}
 
 	// Cleanup
 	defer func() {
 		// Remove connection from user
-		users.chanConn <- connectionMessage{REMOVE, uid, conn}
+		users.chanConn <- userConnectionEvent{REMOVE, uid, conn}
 		// close
 		err := conn.Close()
 		if err != nil {
@@ -128,7 +128,9 @@ func (users *Users) HandleUserConnection(conn *websocket.Conn, uid uint32)  {
 	for {
 		mt, message, err := conn.ReadMessage()
 		if err != nil {
-			if err.Error() != "websocket: close 1005 (no status)" && err.Error() != "websocket: close 1001 (going away)" {
+			if err.Error() != "websocket: close 1005 (no status)" &&
+				err.Error() != "websocket: close 1001 (going away)" &&
+				err.Error() != "websocket: close 1000 (normal)" {
 				log.Error("Connection read error: %v", err)
 			}
 			break
@@ -136,18 +138,18 @@ func (users *Users) HandleUserConnection(conn *websocket.Conn, uid uint32)  {
 		if mt == websocket.TextMessage {
 			users.Stats.MessagesReceived += 1
 			// Dispatch message from user
-			users.chanOut <- Message{uid, message}
+			users.chanOut <- UserMessageEvent{uid, message}
 		}
 	}
 }
 
 // Send message to all user connections
-func (users *Users) sendMessage(uid uint32, payload []byte) {
-	conns, exists := users.conns[uid]
+func (users *Users) sendEvent(event UserMessageEvent) {
+	conns, exists := users.conns[event.Uid]
 	if exists {
 		item := conns.Front()
 		for item != nil {
-			err := item.Value.(*websocket.Conn).WriteMessage(websocket.TextMessage, payload)
+			err := item.Value.(*websocket.Conn).WriteMessage(websocket.TextMessage, event.RawMessage)
 			if err != nil {
 				log.Error("Send error: %v", err)
 			} else {
@@ -159,11 +161,11 @@ func (users *Users) sendMessage(uid uint32, payload []byte) {
 }
 
 // Send message to all user connections
-func (users *Users) SendMessage(uid uint32, payload []byte) {
-	users.chanIn <- Message{uid, payload}
+func (users *Users) SendEvent(event UserMessageEvent) {
+	users.chanIn <- event
 }
 
 // Read message from user, blocked
-func (users *Users) ReceiveMessage() Message {
+func (users *Users) ReceiveEvent() UserMessageEvent {
 	return <-users.chanOut
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type Stats struct {
-	Users *hive.Stats
+	Users *hive.UsersStats
 	Apps *hive.AppsStats
 }
 

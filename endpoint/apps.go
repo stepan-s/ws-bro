@@ -38,6 +38,6 @@ func BindApps(apps *hive.Apps, pattern string) {
 			return
 		}
 
-		apps.HandleAppConnection(conn, aid)
+		apps.HandleConnection(conn, aid)
 	})
 }

@@ -32,7 +32,7 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			return
 		}
 
-		users.SendMessage(uint32(uid), body)
+		users.SendEvent(hive.UserMessageEvent{Uid: uint32(uid), RawMessage: body})
 	})
 
 	http.HandleFunc(pattern+"/app/send", func(w http.ResponseWriter, r *http.Request) {
@@ -55,10 +55,10 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			return
 		}
 
-		apps.SendMessage(aid, hive.SYSUID, body)
+		apps.SendEvent(hive.AppMessageToEvent{Aid: aid, Uid: hive.SYSUID, RawMessage: body})
 	})
 
-	http.HandleFunc(pattern+"/sign-auth", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(pattern+"/user/sign-auth", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Auth") != apiKey {
 			w.WriteHeader(http.StatusForbidden)
 			return
@@ -80,5 +80,59 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			log.Error("Fail sign auth: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
+	})
+
+	http.HandleFunc(pattern+"/app/attach", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Auth") != apiKey {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		uid, err := strconv.ParseInt(r.URL.Query().Get("uid"), 10, 32)
+		if err != nil {
+			w.Header().Add("X-Error", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		aid, err := uuid.Parse(r.URL.Query().Get("uuid"))
+		if err != nil {
+			w.Header().Add("X-Error", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		apps.UpdateUids(hive.AppUidsEvent{
+			Cmd: hive.ADD,
+			Aid:  aid,
+			Uids: []uint32{uint32(uid)},
+		})
+	})
+
+	http.HandleFunc(pattern+"/app/detach", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Auth") != apiKey {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		uid, err := strconv.ParseInt(r.URL.Query().Get("uid"), 10, 32)
+		if err != nil {
+			w.Header().Add("X-Error", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		aid, err := uuid.Parse(r.URL.Query().Get("uuid"))
+		if err != nil {
+			w.Header().Add("X-Error", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		apps.UpdateUids(hive.AppUidsEvent{
+			Cmd: hive.REMOVE,
+			Aid:  aid,
+			Uids: []uint32{uint32(uid)},
+		})
 	})
 }

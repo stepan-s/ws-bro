@@ -7,6 +7,7 @@
 
             var output = document.getElementById("output");
             var input = document.getElementById("input");
+            var uuid = document.getElementById("uuid");
             var uid_input = document.getElementById("uid");
             var ws;
             var apiSignURL = "{{.ApiSignURL}}";
@@ -60,8 +61,18 @@
                 if (!ws) {
                     return false;
                 }
-                print("SEND: " + input.value);
-                ws.send(input.value);
+                print("SEND: " + uuid.value + " / " + input.value);
+                var message = '{"Action": "sendData", "To":"' + uuid.value + '", "Data":{"Text": "' + input.value + '"}}';
+                ws.send(message);
+                return false;
+            };
+
+            document.getElementById("get_connected").onclick = function(evt) {
+                if (!ws) {
+                    return false;
+                }
+                var message = '{"Action": "getConnected", "List":["' + uuid.value + '"]}';
+                ws.send(message);
                 return false;
             };
 
@@ -81,8 +92,10 @@
         <label for="uid">UID:</label><input id="uid" type="text" value="">
         <button id="open">Open</button> |
         <button id="close">Close</button> |
+        <label for="uuid">UUID</label><input id="uuid" type="text" value="123e4567-e89b-12d3-a456-426655440000">
         <label for="input">Message</label><input id="input" type="text" value="Hello world!">
         <button id="send">Send</button>
+        <button id="get_connected">Get connected</button>
     </form>
     <hr>
     <div id="output"></div>

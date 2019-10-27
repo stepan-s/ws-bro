@@ -23,7 +23,7 @@ func BindDevPage(pattern string, templatePath string, apiKey string) {
 	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		err := indexTemplate.Execute(w, devPageParams{
 			WsURL:      "wss://" + r.Host + "/bro",
-			ApiSignURL: "https://" + r.Host + "/api/sign-auth",
+			ApiSignURL: "https://" + r.Host + "/api/user/sign-auth",
 			ApiKey:     apiKey,
 		})
 		if err != nil {

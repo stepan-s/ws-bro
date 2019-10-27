@@ -1,7 +1,6 @@
 package hive
 
 import (
-	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/stepan-s/ws-bro/log"
 )
@@ -17,61 +16,80 @@ type AppPayload struct {
 func RouterStart(users *Users, apps *Apps)  {
 	go func() {
 		for {
-			msg := users.ReceiveMessage()
-			aid, err := extractReceiverUUID(msg)
+			event := users.ReceiveEvent()
+			action, err := MessageRawGetAction(event.RawMessage)
 			if err != nil {
-				log.Error("User:%d say:%s", msg.Uid, msg.Payload)
+				log.Error("Fail get message action: %v, user:%d message:%s", err, event.Uid, event.RawMessage)
 			} else {
-				apps.SendMessage(*aid, msg.Uid, msg.Payload)
+				switch action {
+				case ACTION_SEND_DATA:
+					incomingMessage, err := MessageUserSendDataUnpack(event.RawMessage);
+					if err != nil {
+						log.Error("Fail unpack: %v, user:%d, message: %s", err, event.Uid, event.RawMessage)
+					} else {
+						outgoingMessage, err := MessageAppReceivedDataPack(&MessageAppReceivedData{
+							Action: ACTION_RECEIVED_DATA,
+							From:   event.Uid,
+							Data:   incomingMessage.Data,
+						})
+						if err != nil {
+							log.Error("Fail pack: %v, user:%d, message: %s", err, event.Uid, event.RawMessage)
+						} else {
+							apps.SendEvent(AppMessageToEvent{incomingMessage.To, event.Uid, outgoingMessage})
+						}
+					}
+				case ACTION_GET_CONNECTED:
+					incomingMessage, err := MessageUserGetConnectedUnpack(event.RawMessage);
+					if err != nil {
+						log.Error("Fail unpack: %v, user:%d, message: %s", err, event.Uid, event.RawMessage)
+					} else {
+						apps.getConnected(appConnectedEvent{
+							uid:  event.Uid,
+							aids: incomingMessage.List,
+						})
+					}
+				default:
+					log.Error("Invalid message action: %s, user:%d, message: %s", action, event.Uid, event.RawMessage)
+				}
 			}
 		}
 	}()
 
 	go func() {
 		for {
-			msg := apps.ReceiveMessage()
-			// send to all users connected to the app
-			if msg.Uids != nil {
-				err := injectTransmitterUUID(&msg)
-				if err != nil {
-					log.Error("App:%v say:%s", msg.Aid, msg.Payload)
-				} else {
-					item := msg.Uids.Front()
-					for item != nil {
-						users.SendMessage(item.Value.(uint32), msg.Payload)
-						item = item.Next()
+			event := apps.ReceiveEvent()
+			action, err := MessageRawGetAction(event.RawMessage)
+			if err != nil {
+				log.Error("Fail get message action: %v, app:%d message:%s", err, event.Aid, event.RawMessage)
+			} else {
+				switch action {
+				case ACTION_SEND_DATA:
+					incomingMessage, err := MessageAppSendDataUnpack(event.RawMessage);
+					if err != nil {
+						log.Error("Fail unpack: %v, app:%d, message: %s", err, event.Aid, event.RawMessage)
+					} else {
+						outgoingMessage, err := MessageUserReceivedDataPack(&MessageUserReceivedData{
+							Action: ACTION_RECEIVED_DATA,
+							From:   event.Aid,
+							Data:   incomingMessage.Data,
+						})
+						if err != nil {
+							log.Error("Fail pack: %v, app:%d, message: %s", err, event.Aid, event.RawMessage)
+						} else {
+							// send to all users connected to the app
+							for _, item := range event.Uids {
+								users.SendEvent(UserMessageEvent{item, outgoingMessage})
+							}
+						}
 					}
+				case ACTION_CONNECTED, ACTION_DISCONNECTED, ACTION_ATTACHED, ACTION_DETACHED:
+					for _, item := range event.Uids {
+						users.SendEvent(UserMessageEvent{item, event.RawMessage})
+					}
+				default:
+					log.Error("Invalid message action: %s, app:%d, message: %s", action, event.Aid, event.RawMessage)
 				}
 			}
 		}
 	}()
-}
-
-func extractReceiverUUID(msg Message) (*uuid.UUID, error)  {
-	var payload UserPayload
-	err := json.Unmarshal(msg.Payload, payload)
-	if err != nil {
-		return nil, err
-	} else {
-		return &payload.Receiver, nil
-	}
-}
-
-func injectTransmitterUUID(msg *AppMessageFrom) error  {
-	var objmap map[string]*json.RawMessage
-	err := json.Unmarshal(msg.Payload, &objmap)
-	if err != nil {
-		return err
-	}
-
-	json_value := json.RawMessage(msg.Aid.String())
-	objmap["Transmitter"] = &json_value
-	payload, err := json.Marshal(objmap);
-	if err != nil {
-		return err
-	}
-
-	msg.Payload = payload
-
-	return nil
 }
