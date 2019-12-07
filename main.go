@@ -18,11 +18,12 @@ func main() {
 	var addr = flag.String("addr", "localhost:443", "http service address")
 	var allowedOrigins = flag.String("allowed-origins", "", "allowed origins")
 	var authKey = flag.String("auth-key", "", "auth key")
-	endpoint.AuthSignTTL = *flag.Int64("auth-sign-ttl", endpoint.AuthSignTTL, "auth sign ttl in seconds")
+	endpoint.UserAuthSignTTL = *flag.Int64("auth-sign-ttl", endpoint.UserAuthSignTTL, "user auth sign ttl in seconds")
+	endpoint.AppAuthSignTTL = *flag.Int64("app-auth-sign-ttl", endpoint.AppAuthSignTTL, "app auth sign ttl in seconds")
 	var certFilename = flag.String("cert-file", "", "certificate path")
 	var privKeyFilename = flag.String("key-file", "", "private key path")
 	var apiKey = flag.String("api-key", "", "api key")
-	var uidsApiUrl = flag.String("uids-api-url", "", "get uids by uuid")
+	var uidsApiUrl = flag.String("uids-api-url", "", "get uids by aid")
 	var devPageTemplate = flag.String("dev-page-template", "devpage.html", "dev page template path")
 	flag.Parse()
 
@@ -48,7 +49,7 @@ func main() {
 	endpoint.BindStats(users, apps, "/stats")
 	endpoint.BindApi(users, apps, "/api", *apiKey, *authKey)
 	endpoint.BindUsers(users, "/bro", *allowedOrigins, *authKey)
-	endpoint.BindApps(apps, "/app")
+	endpoint.BindApps(apps, "/app", *authKey)
 
 	srv := &http.Server{Addr: *addr}
 

@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var AuthSignTTL int64 = 1800
+var UserAuthSignTTL int64 = 1800
 
 func SignUserAuth(uid uint32, ts int64, authKey string) string {
 	hash := sha256.New()
@@ -87,7 +87,7 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 			}
 
 			now := time.Now().Unix()
-			if (now - ts) > AuthSignTTL {
+			if (now - ts) > UserAuthSignTTL {
 				log.Warning("Decline connection, reason: incorrect ts: %d for user: %d", ts, uid)
 				w.Header().Add("X-Error", "Expired sign")
 				w.WriteHeader(http.StatusForbidden)

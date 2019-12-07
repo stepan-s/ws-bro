@@ -145,7 +145,7 @@ func (apps *Apps) getUids(aid uuid.UUID) {
 		}
 
 		q := req.URL.Query()
-		q.Add("uuid", aid.String())
+		q.Add("aid", aid.String())
 		req.URL.RawQuery = q.Encode()
 
 		client := &http.Client{}

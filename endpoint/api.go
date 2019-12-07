@@ -41,7 +41,7 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			return
 		}
 
-		aid, err := uuid.Parse(r.URL.Query().Get("uuid"))
+		aid, err := uuid.Parse(r.URL.Query().Get("aid"))
 		if err != nil {
 			w.Header().Add("X-Error", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -82,6 +82,30 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 		}
 	})
 
+	http.HandleFunc(pattern+"/app/sign-auth", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Auth") != apiKey {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		aid, err := uuid.Parse(r.URL.Query().Get("aid"))
+		if err != nil {
+			w.Header().Add("X-Error", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		now := time.Now().Unix()
+		sign := SignAppAuth(aid, now, authKey)
+
+		w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+		_, err2 := w.Write([]byte(fmt.Sprintf("aid=%s&ts=%d&sign=%s", aid.String(), now, sign)))
+		if err2 != nil {
+			log.Error("Fail sign auth: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	})
+
 	http.HandleFunc(pattern+"/app/attach", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Auth") != apiKey {
 			w.WriteHeader(http.StatusForbidden)
@@ -95,7 +119,7 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			return
 		}
 
-		aid, err := uuid.Parse(r.URL.Query().Get("uuid"))
+		aid, err := uuid.Parse(r.URL.Query().Get("aid"))
 		if err != nil {
 			w.Header().Add("X-Error", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
@@ -122,7 +146,7 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			return
 		}
 
-		aid, err := uuid.Parse(r.URL.Query().Get("uuid"))
+		aid, err := uuid.Parse(r.URL.Query().Get("aid"))
 		if err != nil {
 			w.Header().Add("X-Error", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
