@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/stepan-s/ws-bro/log"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -155,8 +156,7 @@ func (apps *Apps) getUids(aid uuid.UUID) {
 			continue
 		}
 
-		var buf []byte
-		_, err = resp.Body.Read(buf)
+		buf, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			log.Error("Fail get response: %v", err)
 			continue
