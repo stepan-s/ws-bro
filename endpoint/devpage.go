@@ -9,7 +9,7 @@ import (
 
 type devPageParams struct {
 	WsURL      string
-	ApiSignURL string
+	ApiURL string
 	ApiKey     string
 }
 
@@ -23,7 +23,7 @@ func BindDevPage(pattern string, templatePath string, apiKey string) {
 	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		err := indexTemplate.Execute(w, devPageParams{
 			WsURL:      "wss://" + r.Host + "/bro",
-			ApiSignURL: "https://" + r.Host + "/api/user/sign-auth",
+			ApiURL: "https://" + r.Host + "/api",
 			ApiKey:     apiKey,
 		})
 		if err != nil {

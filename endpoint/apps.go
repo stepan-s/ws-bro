@@ -27,16 +27,10 @@ func BindApps(apps *hive.Apps, pattern string, authKey string) {
 	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		// Auth
 
-		token := r.URL.Query().Get("token")
-		if token == "" {
-			w.Header().Add("X-Error", "Empty token")
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
 		var aid uuid.UUID
 		{
-			aid, err := uuid.Parse(r.URL.Query().Get("aid"))
+			var err error
+			aid, err = uuid.Parse(r.URL.Query().Get("aid"))
 			if err != nil {
 				w.Header().Add("X-Error", "Invalid aid")
 				w.WriteHeader(http.StatusBadRequest)
