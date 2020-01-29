@@ -163,7 +163,7 @@ func (apps *Apps) getUids(aid uuid.UUID) {
 		}
 
 		var uids uidsReponse
-		err = json.Unmarshal(buf, uids)
+		err = json.Unmarshal(buf, &uids)
 		if err != nil {
 			log.Error("Fail parse response: %v", err)
 			continue
