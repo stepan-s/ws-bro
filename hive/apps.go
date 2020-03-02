@@ -75,12 +75,12 @@ type uidsReponse struct {
 func NewApps(uidsApiUrl string) *Apps {
 	apps := new(Apps)
 	apps.conns = make(map[uuid.UUID]*App)
-	apps.chanIn = make(chan AppMessageToEvent, 1000)
+	apps.chanIn = make(chan AppMessageToEvent, 10000)
 	apps.chanOutUids = make(chan AppMessageFromEvent, 10000)
-	apps.chanOut = make(chan AppMessageFromEvent, 1000)
-	apps.chanConn = make(chan appConnectionEvent, 1000)
-	apps.chanUids = make(chan AppUidsEvent, 1000)
-	apps.chanConnected = make(chan appConnectedEvent, 1000)
+	apps.chanOut = make(chan AppMessageFromEvent, 10000)
+	apps.chanConn = make(chan appConnectionEvent, 10000)
+	apps.chanUids = make(chan AppUidsEvent, 10000)
+	apps.chanConnected = make(chan appConnectedEvent, 10000)
 	apps.uidsApiUrl = uidsApiUrl
 	go func() {
 		for {
