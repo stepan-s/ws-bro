@@ -58,6 +58,7 @@ type AppsStats struct {
 type Apps struct {
 	conns         map[uuid.UUID]*App
 	chanIn        chan AppMessageToEvent
+	chanOutUids   chan AppMessageFromEvent
 	chanOut       chan AppMessageFromEvent
 	chanConn      chan appConnectionEvent
 	chanUids      chan AppUidsEvent
@@ -75,6 +76,7 @@ func NewApps(uidsApiUrl string) *Apps {
 	apps := new(Apps)
 	apps.conns = make(map[uuid.UUID]*App)
 	apps.chanIn = make(chan AppMessageToEvent, 1000)
+	apps.chanOutUids = make(chan AppMessageFromEvent, 10000)
 	apps.chanOut = make(chan AppMessageFromEvent, 1000)
 	apps.chanConn = make(chan appConnectionEvent, 1000)
 	apps.chanUids = make(chan AppUidsEvent, 1000)
@@ -101,6 +103,12 @@ func NewApps(uidsApiUrl string) *Apps {
 				}
 			case event := <-apps.chanConnected:
 				apps.replyConnected(event)
+			case event := <-apps.chanOutUids:
+				conn, exists := apps.conns[event.Aid]
+				if exists && len(conn.uids) > 0 {
+					event.Uids = conn.uids
+					apps.chanOut <- event
+				}
 			}
 		}
 	}()
@@ -336,10 +344,7 @@ func (apps *Apps) HandleConnection(conn *websocket.Conn, aid uuid.UUID) {
 		if mt == websocket.TextMessage {
 			apps.Stats.MessagesReceived += 1
 			// Dispatch message from app
-			conn, exists := apps.conns[aid]
-			if exists && len(conn.uids) > 0 {
-				apps.chanOut <- AppMessageFromEvent{aid, conn.uids, message}
-			}
+			apps.chanOutUids <- AppMessageFromEvent{aid, nil, message}
 		}
 	}
 }
