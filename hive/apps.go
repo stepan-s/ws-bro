@@ -7,7 +7,6 @@ import (
 	"github.com/stepan-s/ws-bro/log"
 	"io/ioutil"
 	"net/http"
-	"time"
 )
 
 // A message to app
@@ -29,6 +28,11 @@ type appConnectionEvent struct {
 	cmd  uint8
 	aid  uuid.UUID
 	conn *websocket.Conn
+}
+
+type appGetUidsEvent struct {
+	aid      uuid.UUID
+	attempts byte
 }
 
 type AppUidsEvent struct {
@@ -61,6 +65,7 @@ type Apps struct {
 	chanOutUids   chan AppMessageFromEvent
 	chanOut       chan AppMessageFromEvent
 	chanConn      chan appConnectionEvent
+	chanGetUids   chan appGetUidsEvent
 	chanUids      chan AppUidsEvent
 	chanConnected chan appConnectedEvent
 	Stats         AppsStats
@@ -79,6 +84,7 @@ func NewApps(uidsApiUrl string) *Apps {
 	apps.chanOutUids = make(chan AppMessageFromEvent, 10000)
 	apps.chanOut = make(chan AppMessageFromEvent, 10000)
 	apps.chanConn = make(chan appConnectionEvent, 10000)
+	apps.chanGetUids = make(chan appGetUidsEvent, 10000)
 	apps.chanUids = make(chan AppUidsEvent, 10000)
 	apps.chanConnected = make(chan appConnectedEvent, 10000)
 	apps.uidsApiUrl = uidsApiUrl
@@ -112,6 +118,9 @@ func NewApps(uidsApiUrl string) *Apps {
 			}
 		}
 	}()
+	for w := 0; w < 4; w++ {
+		go apps.getUidsWorker()
+	}
 	return apps
 }
 
@@ -136,50 +145,57 @@ func (apps *Apps) addConnection(aid uuid.UUID, conn *websocket.Conn) {
 	apps.Stats.TotalConnectionsAccepted += 1
 	apps.Stats.CurrentConnections += 1
 
-	go apps.getUids(aid)
+	apps.chanGetUids <- appGetUidsEvent{aid, 0}
+}
+
+func (apps *Apps) getUidsWorker()  {
+	for {
+		select {
+		case event := <-apps.chanGetUids:
+			err, uids := apps.getUids(event.aid)
+			if err != nil && event.attempts < 10 {
+				event.attempts++
+				apps.chanGetUids <- event
+			} else {
+				apps.chanUids <- AppUidsEvent{ADD,event.aid, uids}
+			}
+		}
+	}
 }
 
 // Request uid list
-func (apps *Apps) getUids(aid uuid.UUID) {
-	attempts := 10
-	for i := attempts; i > 0; i-- {
-		if i < attempts {
-			time.Sleep(5 * time.Second)
-		}
-
-		req, err := http.NewRequest("GET", apps.uidsApiUrl, nil)
-		if err != nil {
-			log.Error("Fail init request: %v", err)
-			continue
-		}
-
-		q := req.URL.Query()
-		q.Add("aid", aid.String())
-		req.URL.RawQuery = q.Encode()
-
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Error("Fail do request: %v", err)
-			continue
-		}
-
-		buf, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Error("Fail get response: %v", err)
-			continue
-		}
-
-		var uids uidsReponse
-		err = json.Unmarshal(buf, &uids)
-		if err != nil {
-			log.Error("Fail parse response: %v", err)
-			continue
-		}
-
-		apps.addUids(AppUidsEvent{ADD,aid, uids.Uids})
-		break
+func (apps *Apps) getUids(aid uuid.UUID) (error, []uint32) {
+	req, err := http.NewRequest("GET", apps.uidsApiUrl, nil)
+	if err != nil {
+		log.Error("Fail init request: %v", err)
+		return err, nil
 	}
+
+	q := req.URL.Query()
+	q.Add("aid", aid.String())
+	req.URL.RawQuery = q.Encode()
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error("Fail do request: %v", err)
+		return err, nil
+	}
+
+	buf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Error("Fail get response: %v", err)
+		return err, nil
+	}
+
+	var uids uidsReponse
+	err = json.Unmarshal(buf, &uids)
+	if err != nil {
+		log.Error("Fail parse response: %v", err)
+		return err, nil
+	}
+
+	return nil, uids.Uids
 }
 
 func (apps *Apps) addUids(event AppUidsEvent) {
