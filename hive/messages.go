@@ -136,6 +136,24 @@ func MessageUserDisconnectedPack(message *MessageUserDisconnected) ([]byte, erro
 	}
 }
 
+func MessageUserAttachedPack(message *MessageUserAttached) ([]byte, error) {
+	rawMessage, err := json.Marshal(message)
+	if err != nil {
+		return nil, err
+	} else {
+		return rawMessage, nil
+	}
+}
+
+func MessageUserDetachedPack(message *MessageUserDetached) ([]byte, error) {
+	rawMessage, err := json.Marshal(message)
+	if err != nil {
+		return nil, err
+	} else {
+		return rawMessage, nil
+	}
+}
+
 func MessageUserGetConnectedUnpack(rawMessage []byte) (*MessageUserGetConnected, error) {
 	var message MessageUserGetConnected
 	err := json.Unmarshal(rawMessage, &message)

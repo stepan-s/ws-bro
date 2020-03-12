@@ -126,6 +126,16 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			return
 		}
 
+		attachMessage, err := hive.MessageUserAttachedPack(&hive.MessageUserAttached{
+			Action: hive.ACTION_ATTACHED,
+			List:   []uuid.UUID{aid},
+		})
+		if err != nil {
+			log.Error("Fail pack: %v, aid:%v", err, aid)
+		} else {
+			users.SendEvent(hive.UserMessageEvent{Uid: uint32(uid), RawMessage: attachMessage});
+		}
+
 		apps.UpdateUids(hive.AppUidsEvent{
 			Cmd: hive.ADD,
 			Aid:  aid,
@@ -158,5 +168,15 @@ func BindApi(users *hive.Users, apps *hive.Apps, pattern string, apiKey string, 
 			Aid:  aid,
 			Uids: []uint32{uint32(uid)},
 		})
+
+		detachMessage, err := hive.MessageUserAttachedPack(&hive.MessageUserAttached{
+			Action: hive.ACTION_DETACHED,
+			List:   []uuid.UUID{aid},
+		})
+		if err != nil {
+			log.Error("Fail pack: %v, aid:%v", err, aid)
+		} else {
+			users.SendEvent(hive.UserMessageEvent{Uid: uint32(uid), RawMessage: detachMessage});
+		}
 	})
 }
