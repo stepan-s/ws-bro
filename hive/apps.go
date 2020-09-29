@@ -53,6 +53,8 @@ type App struct {
 
 type AppsStats struct {
 	TotalConnectionsAccepted uint64
+	TotalReconnects          uint64
+	TotalDisconnects         uint64
 	CurrentConnections       uint32
 	MessagesReceived         uint64
 	MessagesTransmitted      uint64
@@ -96,7 +98,7 @@ func NewApps(uidsApiUrl string) *Apps {
 				case ADD:
 					apps.addConnection(event.aid, event.conn)
 				case REMOVE:
-					apps.removeConnection(event.aid)
+					apps.removeConnection(event.aid, event.conn)
 				}
 			case event := <-apps.chanIn:
 				apps.sendEvent(event)
@@ -126,26 +128,30 @@ func NewApps(uidsApiUrl string) *Apps {
 
 // Register app connection
 func (apps *Apps) addConnection(aid uuid.UUID, conn *websocket.Conn) {
-	_, exists := apps.conns[aid]
+	existApp, exists := apps.conns[aid]
 	if exists {
-		log.Error("App already connected, disconnect: %v", aid)
-		err := conn.Close()
-		if err != nil {
-			log.Error("Fail disconnect app: %v", aid)
+		log.Info("Reconnect app: %v", aid)
+		apps.conns[aid] = &App{
+			uids: existApp.uids,
+			conn: conn,
 		}
-		//@TODO: notify app or|and user?
-		return
-	}
+		err := existApp.conn.Close()
+		if err != nil {
+			log.Error("Fail disconnect old app: %v", aid)
+		}
+		apps.Stats.TotalConnectionsAccepted += 1
+		apps.Stats.TotalReconnects += 1
+	} else {
+		log.Info("Hello app: %v", aid)
+		apps.conns[aid] = &App{
+			uids: []uint32{},
+			conn: conn,
+		}
+		apps.Stats.TotalConnectionsAccepted += 1
+		apps.Stats.CurrentConnections += 1
 
-	log.Info("Hello app: %v", aid)
-	apps.conns[aid] = &App{
-		uids: []uint32{},
-		conn: conn,
+		apps.chanGetUids <- appGetUidsEvent{aid, 0}
 	}
-	apps.Stats.TotalConnectionsAccepted += 1
-	apps.Stats.CurrentConnections += 1
-
-	apps.chanGetUids <- appGetUidsEvent{aid, 0}
 }
 
 func (apps *Apps) getUidsWorker()  {
@@ -306,9 +312,13 @@ func (apps *Apps) replyConnected(event appConnectedEvent)  {
 }
 
 // Unregister app connection
-func (apps *Apps) removeConnection(aid uuid.UUID) {
+func (apps *Apps) removeConnection(aid uuid.UUID, the_conn *websocket.Conn) {
+	apps.Stats.TotalDisconnects += 1
 	conn, exists := apps.conns[aid]
 	if !exists {
+		return
+	}
+	if conn.conn != the_conn {
 		return
 	}
 

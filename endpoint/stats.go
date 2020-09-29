@@ -108,6 +108,20 @@ func BindMetrics(users *hive.Users, apps *hive.Apps, pattern string) {
 		}, func() float64 {
 			return float64(apps.Stats.MessagesTransmitted)
 		}))
+	prometheus.MustRegister(prometheus.NewCounterFunc(
+		prometheus.CounterOpts{
+			Name: "wsbro_apps_total_disconnects",
+			Help: "The total number apps disconnects",
+		}, func() float64 {
+			return float64(apps.Stats.TotalDisconnects)
+		}))
+	prometheus.MustRegister(prometheus.NewCounterFunc(
+		prometheus.CounterOpts{
+			Name: "wsbro_apps_total_reconnects",
+			Help: "The total number apps reconnects",
+		}, func() float64 {
+			return float64(apps.Stats.TotalReconnects)
+		}))
 
 	http.Handle(pattern, promhttp.Handler())
 }
