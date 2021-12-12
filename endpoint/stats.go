@@ -45,49 +45,47 @@ func BindStats(users UsersStats, apps AppsStats, pattern string) {
 }
 
 func BindMetrics(u UsersStats, a AppsStats, pattern string) {
-	users := u.GetData()
-	apps := a.GetData()
 	prometheus.MustRegister(prometheus.NewCounterFunc(
 		prometheus.CounterOpts{
 			Name: "wsbro_users_total_connections_accepted",
 			Help: "The total number of accepted user connections",
 		}, func() float64 {
-			return float64(users.TotalConnectionsAccepted)
+			return float64(u.GetData().TotalConnectionsAccepted)
 		}))
 	prometheus.MustRegister(prometheus.NewGaugeFunc(
 		prometheus.GaugeOpts{
 			Name: "wsbro_users_current_connections",
 			Help: "The current number of user connections",
 		}, func() float64 {
-			return float64(users.CurrentConnections)
+			return float64(u.GetData().CurrentConnections)
 		}))
 	prometheus.MustRegister(prometheus.NewCounterFunc(
 		prometheus.CounterOpts{
 			Name: "wsbro_users_total_users_connected",
 			Help: "The total number of accepted users",
 		}, func() float64 {
-			return float64(users.TotalUsersConnected)
+			return float64(u.GetData().TotalUsersConnected)
 		}))
 	prometheus.MustRegister(prometheus.NewGaugeFunc(
 		prometheus.GaugeOpts{
 			Name: "wsbro_users_current_users_connected",
 			Help: "The current number of users",
 		}, func() float64 {
-			return float64(users.CurrentUsersConnected)
+			return float64(u.GetData().CurrentUsersConnected)
 		}))
 	prometheus.MustRegister(prometheus.NewCounterFunc(
 		prometheus.CounterOpts{
 			Name: "wsbro_users_messages_received",
 			Help: "The total number of received messages from user",
 		}, func() float64 {
-			return float64(users.MessagesReceived)
+			return float64(u.GetData().MessagesReceived)
 		}))
 	prometheus.MustRegister(prometheus.NewCounterFunc(
 		prometheus.CounterOpts{
 			Name: "wsbro_users_messages_transmitted",
 			Help: "The total number of transmitted messages to user",
 		}, func() float64 {
-			return float64(users.MessagesTransmitted)
+			return float64(u.GetData().MessagesTransmitted)
 		}))
 
 	prometheus.MustRegister(prometheus.NewCounterFunc(
@@ -95,42 +93,42 @@ func BindMetrics(u UsersStats, a AppsStats, pattern string) {
 			Name: "wsbro_apps_total_connections_accepted",
 			Help: "The total number of accepted app connections",
 		}, func() float64 {
-			return float64(apps.TotalConnectionsAccepted)
+			return float64(a.GetData().TotalConnectionsAccepted)
 		}))
 	prometheus.MustRegister(prometheus.NewGaugeFunc(
 		prometheus.GaugeOpts{
 			Name: "wsbro_apps_current_connections",
 			Help: "The current number of app connections",
 		}, func() float64 {
-			return float64(apps.CurrentConnections)
+			return float64(a.GetData().CurrentConnections)
 		}))
 	prometheus.MustRegister(prometheus.NewCounterFunc(
 		prometheus.CounterOpts{
 			Name: "wsbro_apps_messages_received",
 			Help: "The total number of received messages from app",
 		}, func() float64 {
-			return float64(apps.MessagesReceived)
+			return float64(a.GetData().MessagesReceived)
 		}))
 	prometheus.MustRegister(prometheus.NewCounterFunc(
 		prometheus.CounterOpts{
 			Name: "wsbro_apps_messages_transmitted",
 			Help: "The total number of transmitted messages to app",
 		}, func() float64 {
-			return float64(apps.MessagesTransmitted)
+			return float64(a.GetData().MessagesTransmitted)
 		}))
 	prometheus.MustRegister(prometheus.NewCounterFunc(
 		prometheus.CounterOpts{
 			Name: "wsbro_apps_total_disconnects",
 			Help: "The total number apps disconnects",
 		}, func() float64 {
-			return float64(apps.TotalDisconnects)
+			return float64(a.GetData().TotalDisconnects)
 		}))
 	prometheus.MustRegister(prometheus.NewCounterFunc(
 		prometheus.CounterOpts{
 			Name: "wsbro_apps_total_reconnects",
 			Help: "The total number apps reconnects",
 		}, func() float64 {
-			return float64(apps.TotalReconnects)
+			return float64(a.GetData().TotalReconnects)
 		}))
 
 	http.Handle(pattern, promhttp.Handler())
