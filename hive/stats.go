@@ -68,7 +68,7 @@ func (s *UsersStats) ConnectionRemoved() {
 
 func (s *UsersStats) Disconnected() {
 	s.inData.CurrentConnections -= 1
-	s.inData.TotalUsersConnected -= 1
+	s.inData.CurrentUsersConnected -= 1
 	s.sync()
 }
 
