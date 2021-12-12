@@ -70,16 +70,19 @@ func main() {
 		authKey = &key
 	}
 
-	users := hive.NewUsers()
-	apps := hive.NewApps(*uidsApiUrl)
+	usersStats := hive.NewUsersStats()
+	appsStats := hive.NewAppsStats()
+
+	users := hive.NewUsers(usersStats)
+	apps := hive.NewApps(*uidsApiUrl, appsStats)
 	hive.RouterStart(users, apps)
 
 	if len(*devPageTemplate) > 0 {
 		log.Alert("Binding dev page handler - don't use in production - secrets leak!")
 		endpoint.BindDevPage("/dev", *devPageTemplate, *apiKey)
 	}
-	endpoint.BindStats(users, apps, "/stats")
-	endpoint.BindMetrics(users, apps, "/metrics")
+	endpoint.BindStats(usersStats, appsStats, "/stats")
+	endpoint.BindMetrics(usersStats, appsStats, "/metrics")
 	endpoint.BindApi(users, apps, "/api", *apiKey, *authKey)
 	endpoint.BindUsers(users, "/bro", *allowedOrigins, *authKey)
 	endpoint.BindApps(apps, "/app", *authKey)

@@ -20,7 +20,7 @@ func SignAppAuth(aid uuid.UUID, ts int64, authKey string) string {
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
-// Bind http handler
+// BindApps Bind http handler
 func BindApps(apps *hive.Apps, pattern string, authKey string) {
 	var upgrader = websocket.Upgrader{}
 
@@ -75,6 +75,6 @@ func BindApps(apps *hive.Apps, pattern string, authKey string) {
 			return
 		}
 
-		apps.HandleConnection(conn, aid)
+		hive.NewAppConnection(apps, aid, conn)
 	})
 }

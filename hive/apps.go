@@ -3,20 +3,19 @@ package hive
 import (
 	"encoding/json"
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	"github.com/stepan-s/ws-bro/log"
 	"io/ioutil"
 	"net/http"
 )
 
-// A message to app
+// AppMessageToEvent A message to app
 type AppMessageToEvent struct {
 	Aid        uuid.UUID
 	Uid        uint32
 	RawMessage []byte
 }
 
-// A message from app
+// AppMessageFromEvent A message from app
 type AppMessageFromEvent struct {
 	Aid        uuid.UUID
 	Uids       []uint32
@@ -27,7 +26,7 @@ type AppMessageFromEvent struct {
 type appConnectionEvent struct {
 	cmd  uint8
 	aid  uuid.UUID
-	conn *websocket.Conn
+	conn AConnection
 }
 
 type appGetUidsEvent struct {
@@ -42,25 +41,16 @@ type AppUidsEvent struct {
 }
 
 type appConnectedEvent struct {
-	uid uint32
+	uid  uint32
 	aids []uuid.UUID
 }
 
 type App struct {
 	uids []uint32
-	conn *websocket.Conn
+	conn AConnection
 }
 
-type AppsStats struct {
-	TotalConnectionsAccepted uint64
-	TotalReconnects          uint64
-	TotalDisconnects         uint64
-	CurrentConnections       uint32
-	MessagesReceived         uint64
-	MessagesTransmitted      uint64
-}
-
-// A apps hive
+// Apps A apps hive
 type Apps struct {
 	conns         map[uuid.UUID]*App
 	chanIn        chan AppMessageToEvent
@@ -70,7 +60,7 @@ type Apps struct {
 	chanGetUids   chan appGetUidsEvent
 	chanUids      chan AppUidsEvent
 	chanConnected chan appConnectedEvent
-	Stats         AppsStats
+	stats         AAppStat
 	uidsApiUrl    string
 }
 
@@ -78,8 +68,8 @@ type uidsReponse struct {
 	Uids []uint32
 }
 
-// Instantiate apps hive
-func NewApps(uidsApiUrl string) *Apps {
+// NewApps Instantiate apps hive
+func NewApps(uidsApiUrl string, stats AAppStat) *Apps {
 	apps := new(Apps)
 	apps.conns = make(map[uuid.UUID]*App)
 	apps.chanIn = make(chan AppMessageToEvent, 10000)
@@ -90,6 +80,7 @@ func NewApps(uidsApiUrl string) *Apps {
 	apps.chanUids = make(chan AppUidsEvent, 10000)
 	apps.chanConnected = make(chan appConnectedEvent, 10000)
 	apps.uidsApiUrl = uidsApiUrl
+	apps.stats = stats
 	go func() {
 		for {
 			select {
@@ -127,7 +118,7 @@ func NewApps(uidsApiUrl string) *Apps {
 }
 
 // Register app connection
-func (apps *Apps) addConnection(aid uuid.UUID, conn *websocket.Conn) {
+func (apps *Apps) addConnection(aid uuid.UUID, conn AConnection) {
 	existApp, exists := apps.conns[aid]
 	if exists {
 		log.Info("Reconnect app: %v", aid)
@@ -135,26 +126,23 @@ func (apps *Apps) addConnection(aid uuid.UUID, conn *websocket.Conn) {
 			uids: existApp.uids,
 			conn: conn,
 		}
-		err := existApp.conn.Close()
-		if err != nil {
-			log.Error("Fail disconnect old app: %v", aid)
-		}
-		apps.Stats.TotalConnectionsAccepted += 1
-		apps.Stats.TotalReconnects += 1
+		existApp.conn.Close()
+		apps.stats.Reconnected()
 	} else {
 		log.Info("Hello app: %v", aid)
 		apps.conns[aid] = &App{
 			uids: []uint32{},
 			conn: conn,
 		}
-		apps.Stats.TotalConnectionsAccepted += 1
-		apps.Stats.CurrentConnections += 1
+		apps.stats.Connected()
 
 		apps.chanGetUids <- appGetUidsEvent{aid, 0}
 	}
+
+	conn.Start()
 }
 
-func (apps *Apps) getUidsWorker()  {
+func (apps *Apps) getUidsWorker() {
 	for {
 		select {
 		case event := <-apps.chanGetUids:
@@ -163,7 +151,7 @@ func (apps *Apps) getUidsWorker()  {
 				event.attempts++
 				apps.chanGetUids <- event
 			} else {
-				apps.chanUids <- AppUidsEvent{ADD,event.aid, uids}
+				apps.chanUids <- AppUidsEvent{ADD, event.aid, uids}
 			}
 		}
 	}
@@ -281,8 +269,8 @@ func (apps *Apps) removeUids(event AppUidsEvent) {
 	}
 }
 
-func (apps *Apps) replyConnected(event appConnectedEvent)  {
-	list := []appConnection{}
+func (apps *Apps) replyConnected(event appConnectedEvent) {
+	var list []appConnection
 	for _, aid := range event.aids {
 		conn, exists := apps.conns[aid]
 		if exists {
@@ -299,7 +287,7 @@ func (apps *Apps) replyConnected(event appConnectedEvent)  {
 	}
 	rawMessage, err := MessageUserConnectedPack(&MessageUserConnected{
 		Action: ACTION_CONNECTED,
-		List: list,
+		List:   list,
 	})
 	if err != nil {
 		log.Error("Fail pack %v", err)
@@ -312,13 +300,12 @@ func (apps *Apps) replyConnected(event appConnectedEvent)  {
 }
 
 // Unregister app connection
-func (apps *Apps) removeConnection(aid uuid.UUID, the_conn *websocket.Conn) {
-	apps.Stats.TotalDisconnects += 1
+func (apps *Apps) removeConnection(aid uuid.UUID, theConn AConnection) {
 	conn, exists := apps.conns[aid]
 	if !exists {
 		return
 	}
-	if conn.conn != the_conn {
+	if conn.conn != theConn {
 		return
 	}
 
@@ -337,42 +324,8 @@ func (apps *Apps) removeConnection(aid uuid.UUID, the_conn *websocket.Conn) {
 
 	// No connection left - remove app
 	delete(apps.conns, aid)
-	apps.Stats.CurrentConnections -= 1
+	apps.stats.Disconnected()
 	log.Info("Bye app: %v", aid)
-}
-
-func (apps *Apps) HandleConnection(conn *websocket.Conn, aid uuid.UUID) {
-	// Register app connection
-	apps.chanConn <- appConnectionEvent{ADD, aid, conn}
-
-	// Cleanup
-	defer func() {
-		// Remove app connection
-		apps.chanConn <- appConnectionEvent{REMOVE, aid, conn}
-		// close
-		err := conn.Close()
-		if err != nil {
-			log.Error("Connection close error: %v", err)
-		}
-	}()
-
-	// Process
-	for {
-		mt, message, err := conn.ReadMessage()
-		if err != nil {
-			if err.Error() != "websocket: close 1005 (no status)" &&
-				err.Error() != "websocket: close 1001 (going away)" &&
-				err.Error() != "websocket: close 1000 (normal)" {
-				log.Error("Connection read error: %v", err)
-			}
-			break
-		}
-		if mt == websocket.TextMessage {
-			apps.Stats.MessagesReceived += 1
-			// Dispatch message from app
-			apps.chanOutUids <- AppMessageFromEvent{aid, nil, message}
-		}
-	}
 }
 
 // Send message to all app connections
@@ -396,31 +349,40 @@ func (apps *Apps) sendEvent(event AppMessageToEvent) {
 
 		if send {
 			// uid can send to app
-			err := app.conn.WriteMessage(websocket.TextMessage, event.RawMessage)
-			if err != nil {
-				log.Error("Send error: %v", err)
-			} else {
-				apps.Stats.MessagesTransmitted += 1
-			}
+			app.conn.Send(event.RawMessage)
+			apps.stats.Transmitted()
 		}
 	}
 }
 
-// Send message to all app connections
+// SendEvent Send message to all app connections
 func (apps *Apps) SendEvent(event AppMessageToEvent) {
 	apps.chanIn <- event
 }
 
-// Read message from app, blocked
+// ReceiveEvent Read message from app, blocked
 func (apps *Apps) ReceiveEvent() AppMessageFromEvent {
 	return <-apps.chanOut
 }
 
-// Unregister app connection
+// UpdateUids Unregister app connection
 func (apps *Apps) UpdateUids(event AppUidsEvent) {
 	apps.chanUids <- event
 }
 
 func (apps *Apps) getConnected(event appConnectedEvent) {
 	apps.chanConnected <- event
+}
+
+func (apps *Apps) ConnectionAdd(aid uuid.UUID, conn AConnection) {
+	apps.chanConn <- appConnectionEvent{ADD, aid, conn}
+}
+
+func (apps *Apps) ConnectionRemove(aid uuid.UUID, conn AConnection) {
+	apps.chanConn <- appConnectionEvent{REMOVE, aid, conn}
+}
+
+func (apps *Apps) ConnectionMessage(aid uuid.UUID, message []byte) {
+	apps.stats.Received()
+	apps.chanOutUids <- AppMessageFromEvent{aid, nil, message}
 }

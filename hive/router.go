@@ -13,7 +13,7 @@ type AppPayload struct {
 	Transmitter uint32
 }
 
-func RouterStart(users *Users, apps *Apps)  {
+func RouterStart(users *Users, apps *Apps) {
 	go func() {
 		for {
 			event := users.ReceiveEvent()
@@ -23,7 +23,7 @@ func RouterStart(users *Users, apps *Apps)  {
 			} else {
 				switch action {
 				case ACTION_SEND_DATA:
-					incomingMessage, err := MessageUserSendDataUnpack(event.RawMessage);
+					incomingMessage, err := MessageUserSendDataUnpack(event.RawMessage)
 					if err != nil {
 						log.Error("Fail unpack: %v, user:%d, message: %s", err, event.Uid, event.RawMessage)
 					} else {
@@ -39,7 +39,7 @@ func RouterStart(users *Users, apps *Apps)  {
 						}
 					}
 				case ACTION_GET_CONNECTED:
-					incomingMessage, err := MessageUserGetConnectedUnpack(event.RawMessage);
+					incomingMessage, err := MessageUserGetConnectedUnpack(event.RawMessage)
 					if err != nil {
 						log.Error("Fail unpack: %v, user:%d, message: %s", err, event.Uid, event.RawMessage)
 					} else {
@@ -64,7 +64,7 @@ func RouterStart(users *Users, apps *Apps)  {
 			} else {
 				switch action {
 				case ACTION_SEND_DATA:
-					incomingMessage, err := MessageAppSendDataUnpack(event.RawMessage);
+					incomingMessage, err := MessageAppSendDataUnpack(event.RawMessage)
 					if err != nil {
 						log.Error("Fail unpack: %v, app:%d, message: %s", err, event.Aid, event.RawMessage)
 					} else {

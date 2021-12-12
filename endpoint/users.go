@@ -33,7 +33,7 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 	}
 
 	var upgrader = websocket.Upgrader{
-		CheckOrigin:func(r *http.Request) bool {
+		CheckOrigin: func(r *http.Request) bool {
 			origin := r.Header.Get("Origin")
 			u, err := url.Parse(origin)
 			if err != nil {
@@ -49,7 +49,7 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 				if pos < 0 {
 					break
 				}
-				domain = domain[pos + 1:]
+				domain = domain[pos+1:]
 				_, exists = origins[domain]
 			}
 			if !exists {
@@ -114,6 +114,6 @@ func BindUsers(users *hive.Users, pattern string, allowedOrigins string, authKey
 
 		log.Debug("User-Agent: %v", r.Header.Get("User-Agent"))
 
-		users.HandleConnection(conn, uid)
+		hive.NewUserConnection(users, uid, conn)
 	})
 }
