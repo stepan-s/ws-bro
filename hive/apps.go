@@ -324,6 +324,7 @@ func (apps *Apps) removeConnection(aid uuid.UUID, theConn AConnection) {
 
 	// No connection left - remove app
 	delete(apps.conns, aid)
+	conn.conn.Close()
 	apps.stats.Disconnected()
 	log.Info("Bye app: %v", aid)
 }

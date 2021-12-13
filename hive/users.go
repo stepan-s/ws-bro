@@ -84,6 +84,7 @@ func (users *Users) removeConnection(uid uint32, conn AConnection) {
 	for item != nil {
 		if item.Value == conn {
 			conns.Remove(item)
+			item.Value.(AConnection).Close()
 			removed = true
 			break
 		}
