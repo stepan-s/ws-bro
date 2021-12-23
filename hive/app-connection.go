@@ -56,7 +56,10 @@ func (c *AppConnection) Start() {
 	}()
 
 	go func() {
+		ticker := time.NewTicker(60 * time.Second)
 		defer func() {
+			ticker.Stop()
+
 			// Remove app connection
 			c.handler.ConnectionRemove(c.aid, c)
 
@@ -79,6 +82,14 @@ func (c *AppConnection) Start() {
 				err := c.conn.WriteMessage(websocket.TextMessage, msg)
 				if err != nil {
 					log.Error("Send error: %v", err)
+					return
+				}
+			case <-ticker.C:
+				_ = c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
+				if err != nil {
+					log.Error("Ping error: %v", err)
+					return
 				}
 			}
 		}
