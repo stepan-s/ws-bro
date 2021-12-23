@@ -22,6 +22,10 @@ func NewAppConnection(handler AAppHandler, aid uuid.UUID, conn *websocket.Conn) 
 		conn:    conn,
 		send:    make(chan []byte, 10),
 	}
+	conn.SetPongHandler(func(appData string) error {
+		_ = conn.SetReadDeadline(time.Now().Add(70 * time.Second))
+		return nil
+	})
 	handler.ConnectionAdd(aid, c)
 	return c
 }
@@ -39,6 +43,7 @@ func (c *AppConnection) Start() {
 			}
 		}()
 
+		_ = c.conn.SetReadDeadline(time.Now().Add(70 * time.Second))
 		for {
 			mt, message, err := c.conn.ReadMessage()
 			if err != nil {
@@ -73,7 +78,7 @@ func (c *AppConnection) Start() {
 		for {
 			select {
 			case msg, ok := <-c.send:
-				_ = c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				_ = c.conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
 				if !ok {
 					_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 					return
@@ -85,8 +90,7 @@ func (c *AppConnection) Start() {
 					return
 				}
 			case <-ticker.C:
-				_ = c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-				err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
+				err := c.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(1*time.Second))
 				if err != nil {
 					log.Error("Ping error: %v", err)
 					return
